@@ -12,11 +12,14 @@
     You should have received a copy of the GNU General Public License
      along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp32/rom/ets_sys.h"
 #include "esp32ds18b20component.h"
+static const char *TAG = "ds18b20";
+
 
 // OneWire commands
 #define GETTEMP			0x44  // Tells device to take a temperature reading and put it on the scratchpad
@@ -122,46 +125,45 @@ unsigned char ds18b20::ds18b20_reset(void){
 	return presence;
 }
 
-bool ds18b20::ds18b20_setResolution(const DeviceAddress tempSensorAddresses[], int numAddresses, uint8_t newResolution) {
+bool ds18b20::ds18b20_setResolution(const uint8_t sensor, uint8_t newResolution) {
 	bool success = false;
 	// handle the sensors with configuration register
 	newResolution = constrain(newResolution, 9, 12);
 	uint8_t newValue = 0;
 	ScratchPad scratchPad;
-	// loop through each address
-	for (int i = 0; i < numAddresses; i++){
-		// we can only update the sensor if it is connected
-		if (ds18b20_isConnected((DeviceAddress*) tempSensorAddresses[i], scratchPad)) {
-			switch (newResolution) {
-			case 12:
-				newValue = TEMP_12_BIT;
-				break;
-			case 11:
-				newValue = TEMP_11_BIT;
-				break;
-			case 10:
-				newValue = TEMP_10_BIT;
-				break;
-			case 9:
-			default:
-				newValue = TEMP_9_BIT;
-				break;
-			}
-			// if it needs to be updated we write the new value
-			if (scratchPad[CONFIGURATION] != newValue) {
-				scratchPad[CONFIGURATION] = newValue;
-				ds18b20_writeScratchPad((DeviceAddress*) tempSensorAddresses[i], scratchPad);
-			}
-			// done
-			success = true;
+	// we can only update the sensor if it is connected
+	if (ds18b20_isConnected(sensor, scratchPad)) {
+		switch (newResolution) {
+		case 12:
+			newValue = TEMP_12_BIT;
+			break;
+		case 11:
+			newValue = TEMP_11_BIT;
+			break;
+		case 10:
+			newValue = TEMP_10_BIT;
+			break;
+		case 9:
+		default:
+			newValue = TEMP_9_BIT;
+			break;
 		}
+		// if it needs to be updated we write the new value
+		if (scratchPad[CONFIGURATION] != newValue) {
+			scratchPad[CONFIGURATION] = newValue;
+			ds18b20_writeScratchPad(sensor, scratchPad);
+		}
+		// done
+		success = true;
 	}
+	ESP_LOGI(TAG, "SetResolution sensor: %u bit: %u ok: %d", sensor,newResolution,success);
+
 	return success;
 }
 
-void ds18b20::ds18b20_writeScratchPad(const DeviceAddress *deviceAddress, const uint8_t *scratchPad) {
+void ds18b20::ds18b20_writeScratchPad(const uint8_t sensor, const uint8_t *scratchPad) {
 	ds18b20_reset();
-	ds18b20_select(deviceAddress);
+	ds18b20_select(sensor);
 	ds18b20_write_byte(WRITESCRATCH);
 	ds18b20_write_byte(scratchPad[HIGH_ALARM_TEMP]); // high alarm temp
 	ds18b20_write_byte(scratchPad[LOW_ALARM_TEMP]); // low alarm temp
@@ -169,11 +171,11 @@ void ds18b20::ds18b20_writeScratchPad(const DeviceAddress *deviceAddress, const 
 	ds18b20_reset();
 }
 
-bool ds18b20::ds18b20_readScratchPad(const DeviceAddress *deviceAddress, uint8_t* scratchPad) {
+bool ds18b20::ds18b20_readScratchPad(const uint8_t sensor, uint8_t* scratchPad) {
 	// send the reset command and fail fast
 	int b = ds18b20_reset();
 	if (b == 0) return false;
-	ds18b20_select(deviceAddress);
+	ds18b20_select(sensor);
 	ds18b20_write_byte(READSCRATCH);
 	// Read all registers in a simple loop
 	// byte 0: temperature LSB
@@ -192,10 +194,11 @@ bool ds18b20::ds18b20_readScratchPad(const DeviceAddress *deviceAddress, uint8_t
 	return (b == 1);
 }
 
-void ds18b20::ds18b20_select(const DeviceAddress *address){
+void ds18b20::ds18b20_select(uint8_t sensor){
     uint8_t i;
+	if(sensor>devices) return;
     ds18b20_write_byte(SELECTDEVICE);           // Choose ROM
-    for (i = 0; i < 8; i++) ds18b20_write_byte(((uint8_t *)address)[i]);
+    for (i = 0; i < 8; i++) ds18b20_write_byte((char)*(DeviceAddress+8*sensor));
 }
 
 void ds18b20::ds18b20_requestTemperatures(){
@@ -224,8 +227,8 @@ uint16_t ds18b20::millisToWaitForConversion() {
 	}
 }
 
-bool ds18b20::ds18b20_isConnected(const DeviceAddress *deviceAddress, uint8_t *scratchPad) {
-	bool b = ds18b20_readScratchPad(deviceAddress, scratchPad);
+bool ds18b20::ds18b20_isConnected(const uint8_t sensor, uint8_t *scratchPad) {
+	bool b = ds18b20_readScratchPad(sensor, scratchPad);
 	return b && !ds18b20_isAllZeros(scratchPad) && (ds18b20_crc8(scratchPad, 8) == scratchPad[SCRATCHPAD_CRC]);
 }
 
@@ -248,10 +251,10 @@ bool ds18b20::ds18b20_isAllZeros(const uint8_t * const scratchPad) {
 	return true;
 }
 
-float ds18b20::ds18b20_getTempF(const DeviceAddress *deviceAddress) {
+float ds18b20::ds18b20_getTempF(const uint8_t sensor) {
 	ScratchPad scratchPad;
-	if (ds18b20_isConnected(deviceAddress, scratchPad)){
-		int16_t rawTemp = calculateTemperature(deviceAddress, scratchPad);
+	if (ds18b20_isConnected(sensor, scratchPad)){
+		int16_t rawTemp = calculateTemperature(scratchPad);
 		if (rawTemp <= DEVICE_DISCONNECTED_RAW)
 			return DEVICE_DISCONNECTED_F;
 		// C = RAW/128
@@ -261,10 +264,10 @@ float ds18b20::ds18b20_getTempF(const DeviceAddress *deviceAddress) {
 	return DEVICE_DISCONNECTED_F;
 }
 
-float ds18b20::ds18b20_getTempC(const DeviceAddress *deviceAddress) {
+float ds18b20::ds18b20_getTempC(const uint8_t sensor) {
 	ScratchPad scratchPad;
-	if (ds18b20_isConnected(deviceAddress, scratchPad)){
-		int16_t rawTemp = calculateTemperature(deviceAddress, scratchPad);
+	if (ds18b20_isConnected(sensor, scratchPad)){
+		int16_t rawTemp = calculateTemperature(scratchPad);
 		if (rawTemp <= DEVICE_DISCONNECTED_RAW)
 			return DEVICE_DISCONNECTED_F;
 		// C = RAW/128
@@ -275,12 +278,12 @@ float ds18b20::ds18b20_getTempC(const DeviceAddress *deviceAddress) {
 }
 
 // reads scratchpad and returns fixed-point temperature, scaling factor 2^-7
-int16_t ds18b20::calculateTemperature(const DeviceAddress *deviceAddress, uint8_t* scratchPad) {
+int16_t ds18b20::calculateTemperature(uint8_t* scratchPad) {
 	int16_t fpTemperature = (((int16_t) scratchPad[TEMP_MSB]) << 11) | (((int16_t) scratchPad[TEMP_LSB]) << 3);
 	return fpTemperature;
 }
 
-// Returns temperature from sensor
+// Returns temperature from the (only) sensor. Don't use if there are more than 1 sensors.
 float ds18b20::ds18b20_get_temp(void) {
   if(init==1){
     unsigned char check;
@@ -307,7 +310,8 @@ float ds18b20::ds18b20_get_temp(void) {
   else{return 0;}
 }
 
-void ds18b20::ds18b20_init(int GPIO) {
+void ds18b20::ds18b20_init(gpio_num_t GPIO) {
+	devices=0;
 	DS_GPIO = GPIO;
 	gpio_pad_select_gpio(DS_GPIO);
 	init = 1;
@@ -318,14 +322,7 @@ void ds18b20::ds18b20_init(int GPIO) {
 // You do not need to do it for the first search, though you could.
 //
 void ds18b20::reset_search() {
-	devices=0;
-	// reset the search state
-	LastDiscrepancy = 0;
-	LastDeviceFlag = false;
-	LastFamilyDiscrepancy = 0;
-	for (int i = 7; i >= 0; i--) {
-		ROM_NO[i] = 0;
-	}
+
 }
 // --- Replaced by the one from the Dallas Semiconductor web site ---
 //--------------------------------------------------------------------------
@@ -334,13 +331,21 @@ void ds18b20::reset_search() {
 // Return TRUE  : device found, ROM number in ROM_NO buffer
 //        FALSE : device not found, end of search
 
-bool ds18b20::search(uint8_t *newAddr, bool search_mode) {
+bool ds18b20::search(bool search_mode) {
 	uint8_t id_bit_number;
 	uint8_t last_zero, rom_byte_number;
 	bool search_result;
 	uint8_t id_bit, cmp_id_bit;
 
 	unsigned char rom_byte_mask, search_direction;
+	uint8_t ROM_NO[8];
+
+	devices=0;
+	// reset the search state
+
+	for (int i = 7; i >= 0; i--) {
+		ROM_NO[i] = 0;
+	}
 
 	// initialize for search
 	id_bit_number = 1;
@@ -364,7 +369,7 @@ bool ds18b20::search(uint8_t *newAddr, bool search_mode) {
 		if (search_mode == true) {
 			ds18b20_write_byte(0xF0);   // NORMAL SEARCH
 		} else {
-			ds18b20_write_byte(0xEC);   // CONDITIONAL SEARCH
+			ds18b20_write_byte(0xEC);   // ALARM SEARCH (only slaves with a set alarm flag will respond)
 		}
 
 		// loop to do the search
@@ -444,10 +449,19 @@ bool ds18b20::search(uint8_t *newAddr, bool search_mode) {
 		LastFamilyDiscrepancy = 0;
 		search_result = false;
 	} else {
-		for (int i = 0; i < 8; i++){
-			newAddr[i] = ROM_NO[i];
+		for (uint8_t i = 0; i < 8; i++){
+			DeviceAddress=(uint8_t*)realloc((void *)DeviceAddress,8*(devices+1));
+			*(DeviceAddress+i+devices*8) = ROM_NO[i];
 		}
 		devices++;
 	}
 	return search_result;
+}
+
+uint8_t ds18b20::search_all() {
+	devices = 0;
+	free(DeviceAddress);
+	DeviceAddress=0;
+	while (search(true));
+	return devices;
 }
