@@ -96,6 +96,7 @@ void ds18b20::ds18b20_write_byte(char data){
     x &= 0x01;
     ds18b20_write(x);
   }
+  //ESP_LOGD(TAG, "writebyte %2x\n",data);
   ets_delay_us(100);
 }
 // Reads one byte from bus
@@ -112,6 +113,7 @@ unsigned char ds18b20::ds18b20_read_byte(void){
 // Sends reset pulse
 unsigned char ds18b20::ds18b20_reset(void){
 	unsigned char presence;
+	ESP_LOGD(TAG, "reset");
 	gpio_set_direction(DS_GPIO, GPIO_MODE_OUTPUT);
 	noInterrupts();
 	gpio_set_level(DS_GPIO, 0);
@@ -173,6 +175,7 @@ void ds18b20::ds18b20_writeScratchPad(const uint8_t sensor, const uint8_t *scrat
 
 bool ds18b20::ds18b20_readScratchPad(const uint8_t sensor, uint8_t* scratchPad) {
 	// send the reset command and fail fast
+	ESP_LOGD(TAG, "read scratchpad");
 	int b = ds18b20_reset();
 	if (b == 0) return false;
 	ds18b20_select(sensor);
@@ -191,14 +194,19 @@ bool ds18b20::ds18b20_readScratchPad(const uint8_t sensor, uint8_t* scratchPad) 
 		scratchPad[i] = ds18b20_read_byte();
 	}
 	b = ds18b20_reset();
+	for (uint8_t i = 0; i < 9; i++) {
+		ESP_LOGD(TAG, "Sread scratchpad[%u]: %u ", i,scratchPad[i]);
+	}
+
 	return (b == 1);
 }
 
 void ds18b20::ds18b20_select(uint8_t sensor){
     uint8_t i;
 	if(sensor>devices) return;
+	ESP_LOGD(TAG, "select");
     ds18b20_write_byte(SELECTDEVICE);           // Choose ROM
-    for (i = 0; i < 8; i++) ds18b20_write_byte((char)*(DeviceAddress+8*sensor));
+    for (i = 0; i < 8; i++) ds18b20_write_byte((char)*(DeviceAddress+i+8*sensor));
 }
 
 void ds18b20::ds18b20_requestTemperatures(){
@@ -228,6 +236,7 @@ uint16_t ds18b20::millisToWaitForConversion() {
 }
 
 bool ds18b20::ds18b20_isConnected(const uint8_t sensor, uint8_t *scratchPad) {
+	ESP_LOGD(TAG, "ds18b20_isConnected");
 	bool b = ds18b20_readScratchPad(sensor, scratchPad);
 	return b && !ds18b20_isAllZeros(scratchPad) && (ds18b20_crc8(scratchPad, 8) == scratchPad[SCRATCHPAD_CRC]);
 }
@@ -340,7 +349,7 @@ bool ds18b20::search(bool search_mode) {
 	unsigned char rom_byte_mask, search_direction;
 	uint8_t ROM_NO[8];
 
-	devices=0;
+
 	// reset the search state
 
 	for (int i = 7; i >= 0; i--) {
@@ -353,6 +362,7 @@ bool ds18b20::search(bool search_mode) {
 	rom_byte_number = 0;
 	rom_byte_mask = 1;
 	search_result = false;
+	ESP_LOGD(TAG, "search devices: %d LastDeviceFlag: %d",devices,LastDeviceFlag);
 
 	// if the last call was not the last one
 	if (!LastDeviceFlag) {
@@ -427,7 +437,7 @@ bool ds18b20::search(bool search_mode) {
 				}
 			}
 		} while (rom_byte_number < 8);  // loop until through all ROM bytes 0-7
-
+		
 		// if the search was successful then
 		if (!(id_bit_number < 65)) {
 			// search successful so set LastDiscrepancy,LastDeviceFlag,search_result
@@ -440,15 +450,9 @@ bool ds18b20::search(bool search_mode) {
 			search_result = true;
 		}
 	}
-
+	ESP_LOGD(TAG, "search result: %d", search_result);
 	// if no device found then reset counters so next 'search' will be like a first
-	if (!search_result || !ROM_NO[0]) {
-		devices=0;
-		LastDiscrepancy = 0;
-		LastDeviceFlag = false;
-		LastFamilyDiscrepancy = 0;
-		search_result = false;
-	} else {
+	if (search_result && ROM_NO[0]) {
 		for (uint8_t i = 0; i < 8; i++){
 			DeviceAddress=(uint8_t*)realloc((void *)DeviceAddress,8*(devices+1));
 			*(DeviceAddress+i+devices*8) = ROM_NO[i];
@@ -460,6 +464,9 @@ bool ds18b20::search(bool search_mode) {
 
 uint8_t ds18b20::search_all() {
 	devices = 0;
+	LastDiscrepancy = 0;
+	LastDeviceFlag = false;
+	LastFamilyDiscrepancy = 0;
 	free(DeviceAddress);
 	DeviceAddress=0;
 	while (search(true));
