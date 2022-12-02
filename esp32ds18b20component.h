@@ -79,18 +79,17 @@ class ds18b20
     bool isConversionComplete();
     uint16_t millisToWaitForConversion();
     bool search( bool search_mode);
+    int16_t calculateTemperature(uint8_t* scratchPad);
+    uint8_t* DeviceAddress=0;
 
     public:
-    uint8_t* DeviceAddress=0;
-    void ds18b20_init(gpio_num_t GPIO);
+    void start(gpio_num_t GPIO);
     uint8_t search_all();
-    bool ds18b20_setResolution(const uint8_t sensor, uint8_t newResolution);
-    void ds18b20_requestTemperatures();
-    float ds18b20_getTempF(const uint8_t sensor);
-    float ds18b20_getTempC(const uint8_t sensor);
-    int16_t calculateTemperature(uint8_t* scratchPad);
-    float ds18b20_get_temp(void);
+    bool setResolution(const uint8_t sensor, uint8_t newResolution);
+    void requestTemperatures();
+    float getTempF(const uint8_t sensor);
+    float getTempC(const uint8_t sensor);
+    float readSingleSensorTemp(void);
 
-    void reset_search();
 
 };

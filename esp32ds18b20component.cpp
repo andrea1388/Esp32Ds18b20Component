@@ -113,7 +113,7 @@ unsigned char ds18b20::ds18b20_read_byte(void){
 // Sends reset pulse
 unsigned char ds18b20::ds18b20_reset(void){
 	unsigned char presence;
-	ESP_LOGD(TAG, "reset");
+	//ESP_LOGD(TAG, "reset");
 	gpio_set_direction(DS_GPIO, GPIO_MODE_OUTPUT);
 	noInterrupts();
 	gpio_set_level(DS_GPIO, 0);
@@ -127,7 +127,7 @@ unsigned char ds18b20::ds18b20_reset(void){
 	return presence;
 }
 
-bool ds18b20::ds18b20_setResolution(const uint8_t sensor, uint8_t newResolution) {
+bool ds18b20::setResolution(const uint8_t sensor, uint8_t newResolution) {
 	bool success = false;
 	// handle the sensors with configuration register
 	newResolution = constrain(newResolution, 9, 12);
@@ -204,12 +204,12 @@ bool ds18b20::ds18b20_readScratchPad(const uint8_t sensor, uint8_t* scratchPad) 
 void ds18b20::ds18b20_select(uint8_t sensor){
     uint8_t i;
 	if(sensor>devices) return;
-	ESP_LOGD(TAG, "select");
+	//ESP_LOGD(TAG, "select");
     ds18b20_write_byte(SELECTDEVICE);           // Choose ROM
     for (i = 0; i < 8; i++) ds18b20_write_byte((char)*(DeviceAddress+i+8*sensor));
 }
 
-void ds18b20::ds18b20_requestTemperatures(){
+void ds18b20::requestTemperatures(){
 	ds18b20_reset();
 	ds18b20_write_byte(SKIPROM);
 	ds18b20_write_byte(GETTEMP);
@@ -260,7 +260,7 @@ bool ds18b20::ds18b20_isAllZeros(const uint8_t * const scratchPad) {
 	return true;
 }
 
-float ds18b20::ds18b20_getTempF(const uint8_t sensor) {
+float ds18b20::getTempF(const uint8_t sensor) {
 	ScratchPad scratchPad;
 	if (ds18b20_isConnected(sensor, scratchPad)){
 		int16_t rawTemp = calculateTemperature(scratchPad);
@@ -273,7 +273,7 @@ float ds18b20::ds18b20_getTempF(const uint8_t sensor) {
 	return DEVICE_DISCONNECTED_F;
 }
 
-float ds18b20::ds18b20_getTempC(const uint8_t sensor) {
+float ds18b20::getTempC(const uint8_t sensor) {
 	ScratchPad scratchPad;
 	if (ds18b20_isConnected(sensor, scratchPad)){
 		int16_t rawTemp = calculateTemperature(scratchPad);
@@ -293,7 +293,7 @@ int16_t ds18b20::calculateTemperature(uint8_t* scratchPad) {
 }
 
 // Returns temperature from the (only) sensor. Don't use if there are more than 1 sensors.
-float ds18b20::ds18b20_get_temp(void) {
+float ds18b20::readSingleSensorTemp(void) {
   if(init==1){
     unsigned char check;
     char temp1=0, temp2=0;
@@ -319,20 +319,14 @@ float ds18b20::ds18b20_get_temp(void) {
   else{return 0;}
 }
 
-void ds18b20::ds18b20_init(gpio_num_t GPIO) {
+void ds18b20::start(gpio_num_t GPIO) {
 	devices=0;
 	DS_GPIO = GPIO;
 	gpio_pad_select_gpio(DS_GPIO);
 	init = 1;
 }
 
-//
-// You need to use this function to start a search again from the beginning.
-// You do not need to do it for the first search, though you could.
-//
-void ds18b20::reset_search() {
 
-}
 // --- Replaced by the one from the Dallas Semiconductor web site ---
 //--------------------------------------------------------------------------
 // Perform the 1-Wire Search Algorithm on the 1-Wire bus using the existing
