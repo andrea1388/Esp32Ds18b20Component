@@ -17,6 +17,7 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp32/rom/ets_sys.h"
+#include "esp_timer.h"
 #include "esp32ds18b20component.h"
 static const char *TAG = "ds18b20";
 
@@ -302,7 +303,7 @@ float ds18b20::readSingleSensorTemp(void) {
       {
         ds18b20_send_byte(0xCC);
         ds18b20_send_byte(0x44);
-        vTaskDelay(750 / portTICK_RATE_MS);
+        vTaskDelay(750 / portTICK_PERIOD_MS);
         check=ds18b20_RST_PULSE();
         ds18b20_send_byte(0xCC);
         ds18b20_send_byte(0xBE);
@@ -322,7 +323,8 @@ float ds18b20::readSingleSensorTemp(void) {
 void ds18b20::start(gpio_num_t GPIO) {
 	devices=0;
 	DS_GPIO = GPIO;
-	gpio_pad_select_gpio(DS_GPIO);
+	//gpio_pad_select_gpio(DS_GPIO);
+	esp_rom_gpio_pad_select_gpio(DS_GPIO);
 	init = 1;
 }
 
