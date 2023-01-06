@@ -54,7 +54,6 @@ class ds18b20
     gpio_num_t DS_GPIO;
     uint8_t init=0;
     uint8_t bitResolution=12;
-    uint8_t devices=0;
     
     uint8_t LastDiscrepancy=0;
     uint8_t LastFamilyDiscrepancy=0;
@@ -90,6 +89,8 @@ class ds18b20
     float getTempF(const uint8_t sensor);
     float getTempC(const uint8_t sensor);
     float readSingleSensorTemp(void);
+    uint8_t devices=0;
+
 
 
 };
