@@ -12,6 +12,7 @@
     You should have received a copy of the GNU General Public License
      along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -211,6 +212,7 @@ void ds18b20::ds18b20_select(uint8_t sensor){
 }
 
 void ds18b20::requestTemperatures(){
+	if(!devices) {ESP_LOGE(TAG, "devices=0"); return;}
 	ds18b20_reset();
 	ds18b20_write_byte(SKIPROM);
 	ds18b20_write_byte(GETTEMP);
@@ -276,6 +278,7 @@ float ds18b20::getTempF(const uint8_t sensor) {
 
 float ds18b20::getTempC(const uint8_t sensor) {
 	ScratchPad scratchPad;
+	if(sensor>=devices) {ESP_LOGE(TAG,"sensor not indexed"); return 0;}
 	if (ds18b20_isConnected(sensor, scratchPad)){
 		int16_t rawTemp = calculateTemperature(scratchPad);
 		if (rawTemp <= DEVICE_DISCONNECTED_RAW)
@@ -324,7 +327,8 @@ void ds18b20::start(gpio_num_t GPIO) {
 	devices=0;
 	DS_GPIO = GPIO;
 	//gpio_pad_select_gpio(DS_GPIO);
-	esp_rom_gpio_pad_select_gpio(DS_GPIO);
+	ESP_ERROR_CHECK(gpio_reset_pin(DS_GPIO));
+	//esp_rom_gpio_pad_select_gpio(DS_GPIO);
 	init = 1;
 }
 
@@ -339,7 +343,7 @@ void ds18b20::start(gpio_num_t GPIO) {
 bool ds18b20::search(bool search_mode) {
 	uint8_t id_bit_number;
 	uint8_t last_zero, rom_byte_number;
-	bool search_result;
+	bool search_result,ok=false;
 	uint8_t id_bit, cmp_id_bit;
 
 	unsigned char rom_byte_mask, search_direction;
@@ -433,7 +437,8 @@ bool ds18b20::search(bool search_mode) {
 				}
 			}
 		} while (rom_byte_number < 8);  // loop until through all ROM bytes 0-7
-		
+		ESP_LOGD(TAG, "S1 search result: %d rom_byte_number %d", search_result, rom_byte_number);
+	
 		// if the search was successful then
 		if (!(id_bit_number < 65)) {
 			// search successful so set LastDiscrepancy,LastDeviceFlag,search_result
@@ -446,7 +451,6 @@ bool ds18b20::search(bool search_mode) {
 			search_result = true;
 		}
 	}
-	ESP_LOGD(TAG, "search result: %d", search_result);
 	// if no device found then reset counters so next 'search' will be like a first
 	if (search_result && ROM_NO[0]) {
 		for (uint8_t i = 0; i < 8; i++){
@@ -454,8 +458,10 @@ bool ds18b20::search(bool search_mode) {
 			*(DeviceAddress+i+devices*8) = ROM_NO[i];
 		}
 		devices++;
+		ok=true;
 	}
-	return search_result;
+	ESP_LOGD(TAG, "S2 search result: %d rom_byte_number %d", search_result, rom_byte_number);
+	return ok;
 }
 
 uint8_t ds18b20::search_all() {
@@ -465,6 +471,6 @@ uint8_t ds18b20::search_all() {
 	LastFamilyDiscrepancy = 0;
 	free(DeviceAddress);
 	DeviceAddress=0;
-	while (search(true));
+	while (search(true)) vTaskDelay(1);
 	return devices;
 }
