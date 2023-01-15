@@ -58,20 +58,20 @@ static const char *TAG = "ds18b20";
 void ds18b20::ds18b20_write(char bit){
 	if (bit & 1) {
 		gpio_set_direction(DS_GPIO, GPIO_MODE_OUTPUT);
-		noInterrupts();
+		//noInterrupts();
 		gpio_set_level(DS_GPIO,0);
 		ets_delay_us(6);
 		gpio_set_direction(DS_GPIO, GPIO_MODE_INPUT);	// release bus
 		ets_delay_us(64);
-		interrupts();
+		//interrupts();
 	} else {
 		gpio_set_direction(DS_GPIO, GPIO_MODE_OUTPUT);
-		noInterrupts();
+		//noInterrupts();
 		gpio_set_level(DS_GPIO,0);
 		ets_delay_us(60);
 		gpio_set_direction(DS_GPIO, GPIO_MODE_INPUT);	// release bus
 		ets_delay_us(10);
-		interrupts();
+		//interrupts();
 	}
 }
 
@@ -79,14 +79,14 @@ void ds18b20::ds18b20_write(char bit){
 unsigned char ds18b20::ds18b20_read(void){
 	unsigned char value = 0;
 	gpio_set_direction(DS_GPIO, GPIO_MODE_OUTPUT);
-	noInterrupts();
+	//noInterrupts();
 	gpio_set_level(DS_GPIO, 0);
 	ets_delay_us(6);
 	gpio_set_direction(DS_GPIO, GPIO_MODE_INPUT);
 	ets_delay_us(9);
 	value = gpio_get_level(DS_GPIO);
 	ets_delay_us(55);
-	interrupts();
+	//interrupts();
 	return (value);
 }
 // Sends one byte to bus
@@ -117,7 +117,7 @@ unsigned char ds18b20::ds18b20_reset(void){
 	unsigned char presence;
 	//ESP_LOGD(TAG, "reset");
 	gpio_set_direction(DS_GPIO, GPIO_MODE_OUTPUT);
-	noInterrupts();
+	//noInterrupts();
 	gpio_set_level(DS_GPIO, 0);
 	ets_delay_us(480);
 	gpio_set_level(DS_GPIO, 1);
@@ -125,7 +125,7 @@ unsigned char ds18b20::ds18b20_reset(void){
 	ets_delay_us(70);
 	presence = (gpio_get_level(DS_GPIO) == 0);
 	ets_delay_us(410);
-	interrupts();
+	//interrupts();
 	return presence;
 }
 
@@ -136,6 +136,7 @@ bool ds18b20::setResolution(const uint8_t sensor, uint8_t newResolution) {
 	uint8_t newValue = 0;
 	ScratchPad scratchPad;
 	// we can only update the sensor if it is connected
+	noInterrupts();
 	if (ds18b20_isConnected(sensor, scratchPad)) {
 		switch (newResolution) {
 		case 12:
@@ -160,6 +161,7 @@ bool ds18b20::setResolution(const uint8_t sensor, uint8_t newResolution) {
 		// done
 		success = true;
 	}
+	interrupts();
 	ESP_LOGI(TAG, "SetResolution sensor: %u bit: %u ok: %d", sensor,newResolution,success);
 
 	return success;
@@ -213,9 +215,11 @@ void ds18b20::ds18b20_select(uint8_t sensor){
 
 void ds18b20::requestTemperatures(){
 	if(!devices) {ESP_LOGE(TAG, "devices=0"); return;}
+	noInterrupts();
 	ds18b20_reset();
 	ds18b20_write_byte(SKIPROM);
 	ds18b20_write_byte(GETTEMP);
+	interrupts();
     unsigned long start = esp_timer_get_time() / 1000ULL;
     while (!isConversionComplete() && ((esp_timer_get_time() / 1000ULL) - start < millisToWaitForConversion())) vPortYield();
 }
@@ -279,7 +283,10 @@ float ds18b20::getTempF(const uint8_t sensor) {
 float ds18b20::getTempC(const uint8_t sensor) {
 	ScratchPad scratchPad;
 	if(sensor>=devices) {ESP_LOGE(TAG,"sensor not indexed"); return 0;}
-	if (ds18b20_isConnected(sensor, scratchPad)){
+	noInterrupts();
+	bool ok=ds18b20_isConnected(sensor, scratchPad);
+	interrupts();
+	if (ok) {
 		int16_t rawTemp = calculateTemperature(scratchPad);
 		if (rawTemp <= DEVICE_DISCONNECTED_RAW)
 			return DEVICE_DISCONNECTED_F;
@@ -287,6 +294,7 @@ float ds18b20::getTempC(const uint8_t sensor) {
 		// F = (C*1.8)+32 = (RAW/128*1.8)+32 = (RAW*0.0140625)+32
 		return (float) rawTemp/128.0f;
 	}
+	
 	return DEVICE_DISCONNECTED_F;
 }
 
@@ -471,6 +479,13 @@ uint8_t ds18b20::search_all() {
 	LastFamilyDiscrepancy = 0;
 	free(DeviceAddress);
 	DeviceAddress=0;
-	while (search(true)) vTaskDelay(1);
+
+	while(true) {
+		noInterrupts();
+		bool ok=search(true);
+		interrupts();
+		if(!ok) break;
+		vTaskDelay(1);
+	}
 	return devices;
 }
