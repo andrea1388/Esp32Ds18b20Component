@@ -43,3 +43,32 @@ Basic usage:
             }
         }
     }
+
+
+
+Call stack
+
+getTempC(address)
+    noInterrupts
+    ds18b20_isConnected
+        ds18b20_readScratchPad
+            ds18b20_reset
+            ds18b20_select
+            ds18b20_write_byte
+            ds18b20_read_byte
+            ds18b20_reset
+
+ds18b20_select
+    ds18b20_write_byte
+        ds18b20_write
+
+
+requestTemperatures
+	noInterrupts();
+	ds18b20_reset();
+	ds18b20_write_byte(SKIPROM);
+	ds18b20_write_byte(GETTEMP);
+	interrupts();
+
+setResolution
+    noInterrupts

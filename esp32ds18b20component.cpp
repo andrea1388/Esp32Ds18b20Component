@@ -162,7 +162,7 @@ bool ds18b20::setResolution(const DeviceAddress *deviceAddress, uint8_t newResol
 		success = true;
 	}
 	interrupts();
-	ESP_LOGI(TAG, "SetResolution bit: %u ok: %d", newResolution,success);
+	ESP_LOGD(TAG, "SetResolution bit: %u ok: %d", newResolution,success);
 
 	return success;
 }
@@ -179,7 +179,7 @@ void ds18b20::ds18b20_writeScratchPad(const DeviceAddress *deviceAddress, const 
 
 bool ds18b20::ds18b20_readScratchPad(const DeviceAddress *deviceAddress, uint8_t* scratchPad) {
 	// send the reset command and fail fast
-	ESP_LOGD(TAG, "read scratchpad");
+	//ESP_LOGD(TAG, "read scratchpad");
 	int b = ds18b20_reset();
 	if (b == 0) return false;
 	ds18b20_select(deviceAddress);
@@ -198,9 +198,9 @@ bool ds18b20::ds18b20_readScratchPad(const DeviceAddress *deviceAddress, uint8_t
 		scratchPad[i] = ds18b20_read_byte();
 	}
 	b = ds18b20_reset();
-	for (uint8_t i = 0; i < 9; i++) {
+/* 	for (uint8_t i = 0; i < 9; i++) {
 		ESP_LOGD(TAG, "Sread scratchpad[%u]: %u ", i,scratchPad[i]);
-	}
+	} */
 
 	return (b == 1);
 }
@@ -214,6 +214,7 @@ void ds18b20::ds18b20_select(const DeviceAddress *deviceAddress)
 }
 
 void ds18b20::requestTemperatures(){
+	ESP_LOGD(TAG, "requestTemperatures");
 	noInterrupts();
 	ds18b20_reset();
 	ds18b20_write_byte(SKIPROM);
@@ -242,7 +243,6 @@ uint16_t ds18b20::millisToWaitForConversion() {
 }
 
 bool ds18b20::ds18b20_isConnected(const DeviceAddress *deviceAddress, uint8_t *scratchPad) {
-	ESP_LOGD(TAG, "ds18b20_isConnected");
 	bool b = ds18b20_readScratchPad(deviceAddress, scratchPad);
 	return b && !ds18b20_isAllZeros(scratchPad) && (ds18b20_crc8(scratchPad, 8) == scratchPad[SCRATCHPAD_CRC]);
 }
@@ -281,6 +281,9 @@ float ds18b20::getTempF(const DeviceAddress *deviceAddress) {
 
 float ds18b20::getTempC(const DeviceAddress *deviceAddress) {
 	ScratchPad scratchPad;
+	for (uint8_t i = 0; i < 8; i++){
+		ESP_LOGD(TAG, "getTempC %02x", ((uint8_t *)deviceAddress)[i]);
+	}
 	noInterrupts();
 	bool ok=ds18b20_isConnected(deviceAddress, scratchPad);
 	interrupts();
@@ -368,7 +371,7 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 	rom_byte_number = 0;
 	rom_byte_mask = 1;
 	search_result = false;
-	ESP_LOGD(TAG, "search LastDeviceFlag: %d",LastDeviceFlag);
+	//ESP_LOGD(TAG, "search LastDeviceFlag: %d",LastDeviceFlag);
 
 	// if the last call was not the last one
 	if (!LastDeviceFlag) {
@@ -443,7 +446,7 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 				}
 			}
 		} while (rom_byte_number < 8);  // loop until through all ROM bytes 0-7
-		ESP_LOGD(TAG, "S1 search result: %d rom_byte_number %d", search_result, rom_byte_number);
+		//ESP_LOGD(TAG, "S1 search result: %d rom_byte_number %d", search_result, rom_byte_number);
 	
 		// if the search was successful then
 		if (!(id_bit_number < 65)) {
@@ -465,7 +468,7 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 		}
 		ok=true;
 	}
-	ESP_LOGD(TAG, "S2 search result: %d rom_byte_number %d", search_result, rom_byte_number);
+	//ESP_LOGD(TAG, "S2 search result: %d rom_byte_number %d", search_result, rom_byte_number);
 	return ok;
 }
 
@@ -480,6 +483,9 @@ uint8_t ds18b20::search_all(DeviceAddress dal[]) {
 		bool ok=search(true,&dal[devices++]);
 		interrupts();
 		if(!ok) break;
+		for (uint8_t i = 0; i < 8; i++){
+			ESP_LOGD(TAG, "found: %02x", ((uint8_t *)dal)[i]);
+		}
 		vTaskDelay(1);
 	}
 	return devices;
