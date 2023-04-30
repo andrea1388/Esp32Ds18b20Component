@@ -480,13 +480,14 @@ uint8_t ds18b20::search_all(DeviceAddress dal[]) {
 
 	while(true) {
 		noInterrupts();
-		bool ok=search(true,&dal[devices++]);
+		bool ok=search(true,&dal[devices]);
 		interrupts();
 		if(!ok) break;
 		for (uint8_t i = 0; i < 8; i++){
-			ESP_LOGD(TAG, "found: %02x", ((uint8_t *)dal)[i]);
+			ESP_LOGD(TAG, "found: %02x", dal[devices][i]);
 		}
 		vTaskDelay(1);
+		devices++;
 	}
 	return devices;
 }
