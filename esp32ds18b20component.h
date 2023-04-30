@@ -46,6 +46,7 @@
     };
 
 typedef uint8_t DeviceAddress[8];
+typedef DeviceAddress DeviceAddressList[8];
 
 class ds18b20
 {
@@ -84,7 +85,7 @@ class ds18b20
 
     public:
     ds18b20(gpio_num_t GPIO);
-    uint8_t search_all(DeviceAddress[]);
+    uint8_t search_all(DeviceAddressList*);
     bool setResolution(const DeviceAddress *deviceAddress, uint8_t newResolution);
     void requestTemperatures();
     float getTempF(const DeviceAddress *deviceAddress);

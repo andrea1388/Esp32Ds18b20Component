@@ -210,7 +210,7 @@ void ds18b20::ds18b20_select(const DeviceAddress *deviceAddress)
     uint8_t i;
 	//ESP_LOGD(TAG, "select");
     ds18b20_write_byte(SELECTDEVICE);           // Choose ROM
-	for (i = 0; i < 8; i++) ds18b20_write_byte(((uint8_t *)deviceAddress)[i]);
+	for (i = 0; i < 8; i++) ds18b20_write_byte(*deviceAddress[i]);
 }
 
 void ds18b20::requestTemperatures(){
@@ -282,7 +282,7 @@ float ds18b20::getTempF(const DeviceAddress *deviceAddress) {
 float ds18b20::getTempC(const DeviceAddress *deviceAddress) {
 	ScratchPad scratchPad;
 	for (uint8_t i = 0; i < 8; i++){
-		ESP_LOGD(TAG, "getTempC %02x", ((uint8_t *)deviceAddress)[i]);
+		ESP_LOGD(TAG, "getTempC %02x", *deviceAddress[i]);
 	}
 	noInterrupts();
 	bool ok=ds18b20_isConnected(deviceAddress, scratchPad);
@@ -374,6 +374,7 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 	//ESP_LOGD(TAG, "search LastDeviceFlag: %d",LastDeviceFlag);
 
 	// if the last call was not the last one
+	noInterrupts();
 	if (!LastDeviceFlag) {
 		// 1-Wire reset
 		if (!ds18b20_reset()) {
@@ -460,11 +461,12 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 			search_result = true;
 		}
 	}
+	interrupts();
 	// if no device found then reset counters so next 'search' will be like a first
 	if (search_result && ROM_NO[0]) {
 		for (uint8_t i = 0; i < 8; i++){
 			*deviceAddress[i]=ROM_NO[i];
-			//ESP_LOGD(TAG, "0x", ROM_NO[i]);
+			ESP_LOGD(TAG, "search - %02x", ROM_NO[i]);
 		}
 		ok=true;
 	}
@@ -472,19 +474,19 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 	return ok;
 }
 
-uint8_t ds18b20::search_all(DeviceAddress dal[]) {
+uint8_t ds18b20::search_all(DeviceAddressList* dal) {
 	uint8_t devices=0;
 	LastDiscrepancy = 0;
 	LastDeviceFlag = false;
 	LastFamilyDiscrepancy = 0;
 
 	while(true) {
-		noInterrupts();
-		bool ok=search(true,&dal[devices]);
-		interrupts();
+
+		bool ok=search(true,dal[devices]);
+
 		if(!ok) break;
 		for (uint8_t i = 0; i < 8; i++){
-			ESP_LOGD(TAG, "found: %02x", dal[devices][i]);
+			ESP_LOGD(TAG, "found: %02x", *dal[devices][i]);
 		}
 		vTaskDelay(1);
 		devices++;
