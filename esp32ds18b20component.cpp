@@ -19,6 +19,7 @@
 #include "driver/gpio.h"
 #include "esp32/rom/ets_sys.h"
 #include "esp_timer.h"
+#include "string.h"
 #include "esp32ds18b20component.h"
 static const char *TAG = "ds18b20";
 
@@ -466,7 +467,6 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 	if (search_result && ROM_NO[0]) {
 		for (uint8_t i = 0; i < 8; i++){
 			*deviceAddress[i]=ROM_NO[i];
-			ESP_LOGD(TAG, "search - %02x", ROM_NO[i]);
 		}
 		ok=true;
 	}
@@ -474,22 +474,39 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 	return ok;
 }
 
-uint8_t ds18b20::search_all(DeviceAddressList* dal) {
+uint8_t ds18b20::search_all(DeviceAddressList* dal, uint8_t max) {
 	uint8_t devices=0;
 	LastDiscrepancy = 0;
 	LastDeviceFlag = false;
 	LastFamilyDiscrepancy = 0;
 
-	while(true) {
-
+	while(true) 
+	{
 		bool ok=search(true,dal[devices]);
-
 		if(!ok) break;
-		for (uint8_t i = 0; i < 8; i++){
-			ESP_LOGD(TAG, "found: %02x", *dal[devices][i]);
+		printf("sensor: %d address: ", devices);
+		for (uint8_t i = 0; i < 8; i++) {
+			printf("%02x", *dal[devices][i]);
 		}
+		printf("\n");
 		vTaskDelay(1);
 		devices++;
+		if(devices>max) break;
 	}
 	return devices;
+}
+
+void ds18b20::HexToDeviceAddress(DeviceAddress *deviceAddress,char* hexstring)
+{
+	uint8_t i;
+    uint8_t str_len = strlen(hexstring);
+	if((str_len % 2) != 0) {
+		printf("must be even\n");
+		abort();
+	}
+
+    for (i = 0; i < (str_len / 2); i++) {
+        sscanf(hexstring + 2*i, "%02x", (unsigned int*)deviceAddress[i]);
+        printf("bytearray %d: %02x\n", i, *deviceAddress[i]);
+    }
 }

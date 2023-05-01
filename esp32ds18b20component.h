@@ -85,13 +85,13 @@ class ds18b20
 
     public:
     ds18b20(gpio_num_t GPIO);
-    uint8_t search_all(DeviceAddressList*);
+    uint8_t search_all(DeviceAddressList*,uint8_t max);
     bool setResolution(const DeviceAddress *deviceAddress, uint8_t newResolution);
     void requestTemperatures();
     float getTempF(const DeviceAddress *deviceAddress);
     float getTempC(const DeviceAddress *deviceAddress);
     float readSingleSensorTemp(void);
-
+    static void HexToDeviceAddress(DeviceAddress *deviceAddress,char*);
 
 
 };
