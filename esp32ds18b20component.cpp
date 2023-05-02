@@ -496,12 +496,12 @@ uint8_t ds18b20::search_all(DeviceAddressList* dal, uint8_t max) {
 	return devices;
 }
 
-void ds18b20::HexToDeviceAddress(DeviceAddress *deviceAddress,char* hexstring)
+void ds18b20::HexToDeviceAddress(DeviceAddress *deviceAddress,const char* hexstring)
 {
 	uint8_t i;
     uint8_t str_len = strlen(hexstring);
-	if((str_len % 2) != 0) {
-		printf("must be even\n");
+	if(str_len != 16) {
+		printf("must be 16\n");
 		abort();
 	}
 
