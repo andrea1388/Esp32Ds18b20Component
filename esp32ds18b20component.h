@@ -91,7 +91,7 @@ class ds18b20
     float getTempF(const DeviceAddress *deviceAddress);
     float getTempC(const DeviceAddress *deviceAddress);
     float readSingleSensorTemp(void);
-    static void HexToDeviceAddress(DeviceAddress *deviceAddress,const char*);
+    static void HexToDeviceAddress(uint8_t *,const char*);
 
 
 };

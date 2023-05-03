@@ -211,7 +211,7 @@ void ds18b20::ds18b20_select(const DeviceAddress *deviceAddress)
     uint8_t i;
 	//ESP_LOGD(TAG, "select");
     ds18b20_write_byte(SELECTDEVICE);           // Choose ROM
-	for (i = 0; i < 8; i++) ds18b20_write_byte(*deviceAddress[i]);
+	for (i = 0; i < 8; i++) ds18b20_write_byte(((uint8_t *)deviceAddress)[i]);
 }
 
 void ds18b20::requestTemperatures(){
@@ -282,9 +282,9 @@ float ds18b20::getTempF(const DeviceAddress *deviceAddress) {
 
 float ds18b20::getTempC(const DeviceAddress *deviceAddress) {
 	ScratchPad scratchPad;
-	for (uint8_t i = 0; i < 8; i++){
-		ESP_LOGD(TAG, "getTempC %02x", *deviceAddress[i]);
-	}
+/* 	for (uint8_t i = 0; i < 8; i++){
+		ESP_LOGD(TAG, "getTempC %02x", ((uint8_t *)deviceAddress)[i]);
+	} */
 	noInterrupts();
 	bool ok=ds18b20_isConnected(deviceAddress, scratchPad);
 	interrupts();
@@ -496,7 +496,7 @@ uint8_t ds18b20::search_all(DeviceAddressList* dal, uint8_t max) {
 	return devices;
 }
 
-void ds18b20::HexToDeviceAddress(DeviceAddress *deviceAddress,const char* hexstring)
+void ds18b20::HexToDeviceAddress(uint8_t * deviceAddress,const char* hexstring)
 {
 	uint8_t i;
     uint8_t str_len = strlen(hexstring);
@@ -506,7 +506,7 @@ void ds18b20::HexToDeviceAddress(DeviceAddress *deviceAddress,const char* hexstr
 	}
 
     for (i = 0; i < (str_len / 2); i++) {
-        sscanf(hexstring + 2*i, "%02x", (unsigned int*)deviceAddress[i]);
-        printf("bytearray %d: %02x\n", i, *deviceAddress[i]);
+        sscanf(hexstring + 2*i, "%02x", (unsigned int*)&deviceAddress[i]);
+        //printf("bytearray %d: %02x\n", i, deviceAddress[i]);
     }
 }
