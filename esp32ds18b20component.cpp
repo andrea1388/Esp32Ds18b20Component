@@ -375,7 +375,7 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 	//ESP_LOGD(TAG, "search LastDeviceFlag: %d",LastDeviceFlag);
 
 	// if the last call was not the last one
-	noInterrupts();
+
 	if (!LastDeviceFlag) {
 		// 1-Wire reset
 		if (!ds18b20_reset()) {
@@ -462,7 +462,6 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 			search_result = true;
 		}
 	}
-	interrupts();
 	// if no device found then reset counters so next 'search' will be like a first
 	if (search_result && ROM_NO[0]) {
 		for (uint8_t i = 0; i < 8; i++){
@@ -482,17 +481,21 @@ uint8_t ds18b20::search_all(DeviceAddressList* dal, uint8_t max) {
 
 	while(true) 
 	{
+		noInterrupts();
 		bool ok=search(true,dal[devices]);
+		interrupts();
 		if(!ok) break;
-		printf("sensor: %d address: ", devices);
+		ESP_LOGI(TAG,"sensor: %d address: ", devices);
 		for (uint8_t i = 0; i < 8; i++) {
 			printf("%02x", *dal[devices][i]);
 		}
+		//ESP_LOG_BUFFER_HEX_LEVEL(TAG,dal[devices][0],8,ESP_LOG_INFO);
 		printf("\n");
 		vTaskDelay(1);
 		devices++;
 		if(devices>max) break;
 	}
+	ESP_LOGI(TAG,"found %d devices: ", devices);
 	return devices;
 }
 
@@ -501,7 +504,7 @@ void ds18b20::HexToDeviceAddress(uint8_t * deviceAddress,const char* hexstring)
 	uint8_t i;
     uint8_t str_len = strlen(hexstring);
 	if(str_len != 16) {
-		printf("must be 16\n");
+		ESP_LOGE(TAG,"must be 16\n");
 		abort();
 	}
 
