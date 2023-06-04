@@ -199,9 +199,7 @@ bool ds18b20::ds18b20_readScratchPad(const DeviceAddress *deviceAddress, uint8_t
 		scratchPad[i] = ds18b20_read_byte();
 	}
 	b = ds18b20_reset();
-/* 	for (uint8_t i = 0; i < 9; i++) {
-		ESP_LOGD(TAG, "Sread scratchpad[%u]: %u ", i,scratchPad[i]);
-	} */
+
 
 	return (b == 1);
 }
@@ -245,6 +243,7 @@ uint16_t ds18b20::millisToWaitForConversion() {
 
 bool ds18b20::ds18b20_isConnected(const DeviceAddress *deviceAddress, uint8_t *scratchPad) {
 	bool b = ds18b20_readScratchPad(deviceAddress, scratchPad);
+
 	return b && !ds18b20_isAllZeros(scratchPad) && (ds18b20_crc8(scratchPad, 8) == scratchPad[SCRATCHPAD_CRC]);
 }
 
@@ -372,9 +371,8 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 	rom_byte_number = 0;
 	rom_byte_mask = 1;
 	search_result = false;
-	//ESP_LOGD(TAG, "search LastDeviceFlag: %d",LastDeviceFlag);
 
-	// if the last call was not the last one
+
 
 	if (!LastDeviceFlag) {
 		// 1-Wire reset
@@ -462,10 +460,13 @@ bool ds18b20::search(bool search_mode, DeviceAddress* deviceAddress) {
 			search_result = true;
 		}
 	}
+	interrupts();
 	// if no device found then reset counters so next 'search' will be like a first
 	if (search_result && ROM_NO[0]) {
 		for (uint8_t i = 0; i < 8; i++){
+
 			*deviceAddress[i]=ROM_NO[i];
+
 		}
 		ok=true;
 	}
@@ -478,6 +479,7 @@ uint8_t ds18b20::search_all(DeviceAddressList* dal, uint8_t max) {
 	LastDiscrepancy = 0;
 	LastDeviceFlag = false;
 	LastFamilyDiscrepancy = 0;
+
 
 	while(true) 
 	{
