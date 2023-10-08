@@ -71,27 +71,28 @@ class ds18b20
     void ds18b20_write_byte(char data);
     unsigned char ds18b20_read_byte(void);
     unsigned char ds18b20_reset(void);
-    bool ds18b20_isConnected(const DeviceAddress *deviceAddress, uint8_t *scratchPad);
-    void ds18b20_writeScratchPad(const DeviceAddress *deviceAddress, const uint8_t *scratchPad);
-    bool ds18b20_readScratchPad(const DeviceAddress *deviceAddress, uint8_t *scratchPad);
-    void ds18b20_select(const DeviceAddress *deviceAddress);
+    bool ds18b20_isConnected(const DeviceAddress deviceAddress, uint8_t *scratchPad);
+    void ds18b20_writeScratchPad(const DeviceAddress deviceAddress, const uint8_t *scratchPad);
+    bool ds18b20_readScratchPad(const DeviceAddress deviceAddress, uint8_t *scratchPad);
+    void ds18b20_select(const DeviceAddress deviceAddress);
     uint8_t ds18b20_crc8(const uint8_t *addr, uint8_t len);
     bool ds18b20_isAllZeros(const uint8_t * const scratchPad);
     bool isConversionComplete();
     uint16_t millisToWaitForConversion();
-    bool search( bool search_mode,DeviceAddress*);
+    bool search( bool search_mode,DeviceAddress);
     int16_t calculateTemperature(uint8_t* scratchPad);
 
 
     public:
     ds18b20(gpio_num_t GPIO);
-    uint8_t search_all(DeviceAddressList*,uint8_t max);
-    bool setResolution(const DeviceAddress *deviceAddress, uint8_t newResolution);
+    uint8_t search_all(DeviceAddress address[],uint8_t max);
+    bool setResolution(const DeviceAddress deviceAddress, uint8_t newResolution);
     void requestTemperatures();
-    float getTempF(const DeviceAddress *deviceAddress);
-    float getTempC(const DeviceAddress *deviceAddress);
+    float getTempF(const DeviceAddress deviceAddress);
+    float getTempC(const DeviceAddress deviceAddress);
     float readSingleSensorTemp(void);
-    static void HexToDeviceAddress(uint8_t *,const char*);
+    static void HexToDeviceAddress(DeviceAddress,const char*);
+    static void printAddress(const DeviceAddress deviceAddress);
 
 
 };
